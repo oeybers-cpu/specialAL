@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALLChat Interactive</title>
+    <style>
+        :root {
+            --primary-color: #3a86ff;
+            --secondary-color: #8338ec;
+            --accent-color: #ff006e;
+            --light-bg: #f8f9fa;
+            --dark-text: #212529;
+            --light-text: #f8f9fa;
+            --user-msg-bg: #e9ecef;
+            --agent-msg-bg: #3a86ff;
+            --border-radius: 12px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--light-text);
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tagline {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.8rem 1rem;
+            border-radius: var(--border-radius);
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message {
+            background-color: var(--user-msg-bg);
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .agent-message {
+            background-color: var(--agent-msg-bg);
+            color: var(--light-text);
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 0.3rem;
+            opacity: 0.8;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .input-field {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        .input-field:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(58, 134, 255, 0.2);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.8rem 1.2rem;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        
+        .btn-question {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-comment {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 0.8rem 1rem;
+            background-color: var(--user-msg-bg);
+            border-radius: var(--border-radius);
+            margin-right: auto;
+            max-width: 80px;
+            margin-bottom: 1rem;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #6c757d;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        
+        @media (max-width: 600px) {
+            .input-container {
+                flex-direction: column;
+            }
+            
+            .button-group {
+                width: 100%;
+            }
+            
+            .btn {
+                flex: 1;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">ALLChat Interactive</div>
+        <div class="tagline">Ask questions, share comments, get responses</div>
+    </header>
+    
+    <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+            <div class="message agent-message">
+                <div class="message-header">
+                    <span>ALLChat Assistant</span>
+                    <span>Just now</span>
+                </div>
+                <div class="message-content">
+                    Hello! Welcome to ALLChat Interactive. You can ask me questions or share your comments. How can I help you today?
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" class="input-field" id="messageInput" placeholder="Type your message here...">
+            <div class="button-group">
+                <button class="btn btn-question" id="askQuestion">Ask Question</button>
+                <button class="btn btn-comment" id="postComment">Post Comment</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageInput = document.getElementById('messageInput');
+            const askQuestionBtn = document.getElementById('askQuestion');
+            const postCommentBtn = document.getElementById('postComment');
+            const typingIndicator = document.getElementById('typingIndicator');
+            
+            // Sample responses for demonstration
+            const responses = [
+                "That's an interesting point. Could you tell me more about that?",
+                "I understand your question. Let me provide some information on that topic.",
+                "Thanks for sharing your perspective. I appreciate your input.",
+                "I see what you're asking. Here's what I can tell you about that.",
+                "That's a thoughtful comment. Let me respond to that.",
+                "I'm glad you brought that up. Here's some information that might help.",
+                "Interesting question! Let me provide some details on that subject.",
+                "Thanks for your comment. Here's my perspective on that.",
+                "I appreciate you asking that. Here's what I know about it.",
+                "That's a good point. Let me add to that discussion."
+            ];
+            
+            // Function to add a message to the chat
+            function addMessage(content, isUser, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user-message' : 'agent-message'}`;
+                
+                const messageHeader = document.createElement('div');
+                messageHeader.className = 'message-header';
+                
+                const sender = document.createElement('span');
+                sender.textContent = isUser ? 'You' : 'ALLChat Assistant';
+                
+                const timestamp = document.createElement('span');
+                const now = new Date();
+                timestamp.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                messageHeader.appendChild(sender);
+                messageHeader.appendChild(timestamp);
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.textContent = content;
+                
+                // Add type indicator if it's a user message
+                if (isUser && type) {
+                    const typeIndicator = document.createElement('div');
+                    typeIndicator.style.fontSize = '0.7rem';
+                    typeIndicator.style.marginTop = '0.3rem';
+                    typeIndicator.style.opacity = '0.7';
+                    typeIndicator.textContent = `Type: ${type}`;
+                    messageContent.appendChild(typeIndicator);
+                }
+                
+                messageDiv.appendChild(messageHeader);
+                messageDiv.appendChild(messageContent);
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Function to simulate agent response
+            function respondToUser(userMessage, type) {
+                // Show typing indicator
+                typingIndicator.style.display = 'block';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Simulate thinking time
+                setTimeout(() => {
+                    typingIndicator.style.display = 'none';
+                    
+                    // Select a random response
+                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                    addMessage(randomResponse, false);
+                }, 1500);
+            }
+            
+            // Event listeners for buttons
+            askQuestionBtn.addEventListener('click', function() {
+                const message = messageInput.value.trim();
+                if (message) {
+                    addMessage(message, true, 'Question');
+                    messageInput.value = '';
+                    respondToUser(message, 'Question');
+                }
+            });
+            
+            postCommentBtn.addEventListener('click', function() {
+                const message = messageInput.value.trim();
+                if (message) {
+                    addMessage(message, true, 'Comment');
+                    messageInput.value = '';
+                    respondToUser(message, 'Comment');
+                }
+            });
+            
+            // Allow sending message with Enter key
+            messageInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const message = messageInput.value.trim();
+                    if (message) {
+                        addMessage(message, true, 'Message');
+                        messageInput.value = '';
+                        respondToUser(message, 'Message');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
