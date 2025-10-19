@@ -1,4 +1,4 @@
-// api/chat.js - ULTRA-AGGRESSIVE VERSION
+// api/chat.js - STEP-BY-STEP THINKING APPROACH
 export default async function handler(req, res) {
     console.log('=== CHAT API CALLED ===');
     
@@ -23,25 +23,21 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, error: 'No message' });
         }
 
-        // ULTRA-EXPLICIT PROMPT - FORCES DETAILED RESPONSES
-        const systemPrompt = `CRITICAL: You MUST provide detailed, comprehensive responses. 
-FAILURE TO FOLLOW THESE RULES WILL RESULT IN TERMINATION.
+        // FORCE STEP-BY-STEP THINKING
+        const systemPrompt = `You are ALLChat Assistant. You MUST follow this exact thinking process:
 
-NON-NEGOTIABLE RULES:
-1. NEVER give one-sentence responses
-2. ALWAYS write 3-5 paragraphs minimum
-3. Each paragraph must be 3-5 sentences
-4. Provide examples, explanations, and context
-5. If asked about a topic, cover multiple aspects
-6. Minimum 200 words per response
-7. Use clear paragraph breaks with \\n\\n
+1. FIRST, analyze the user's ${type} and identify 3-5 key aspects to address
+2. THEN, for each aspect, write a detailed paragraph with examples
+3. FINALLY, provide a conclusion that summarizes the main points
 
-EXAMPLE OF ACCEPTABLE RESPONSE STRUCTURE:
-- Introduction paragraph explaining the topic
-- 2-3 detailed paragraphs with specific information  
-- Conclusion paragraph summarizing key points
+RESPONSE STRUCTURE REQUIREMENTS:
+- Minimum 4 paragraphs
+- Each paragraph 3-5 sentences  
+- Use clear transitions between paragraphs
+- Include specific examples and details
+- Total response: 15-25 sentences
 
-YOUR RESPONSE MUST MEET THESE REQUIREMENTS OR IT WILL BE REJECTED.`;
+FAILURE TO FOLLOW THIS STRUCTURE WILL RESULT IN PENALTIES.`;
 
         console.log('Making OpenAI request...');
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -51,7 +47,7 @@ YOUR RESPONSE MUST MEET THESE REQUIREMENTS OR IT WILL BE REJECTED.`;
                 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
             },
             body: JSON.stringify({
-                model: 'gpt-4',  // Using GPT-4 for better instruction following
+                model: 'gpt-3.5-turbo',  // Back to 3.5 but with better prompting
                 messages: [
                     { 
                         role: 'system', 
@@ -59,12 +55,13 @@ YOUR RESPONSE MUST MEET THESE REQUIREMENTS OR IT WILL BE REJECTED.`;
                     },
                     { 
                         role: 'user', 
-                        content: `This is a ${type}: "${message}". I need a comprehensive, multi-paragraph response that thoroughly addresses this.` 
+                        content: `USER ${type.toUpperCase()}: "${message}"\n\nPlease analyze this ${type} and provide a comprehensive response following the required structure.` 
                     }
                 ],
-                max_tokens: 2000,  // Much higher token limit
-                temperature: 0.7,
-                top_p: 0.9
+                max_tokens: 1500,
+                temperature: 0.8,  // Higher creativity
+                presence_penalty: 0.6,  // Encourage new content
+                frequency_penalty: 0.6   // Discourage repetition
             })
         });
 
@@ -77,13 +74,14 @@ YOUR RESPONSE MUST MEET THESE REQUIREMENTS OR IT WILL BE REJECTED.`;
         }
 
         const data = await openaiResponse.json();
-        console.log('OpenAI response received');
-        console.log('Response length:', data.choices[0].message.content.length);
-        console.log('First 200 chars:', data.choices[0].message.content.substring(0, 200));
+        const responseContent = data.choices[0].message.content;
+        
+        console.log('Response length:', responseContent.length);
+        console.log('Paragraph count:', (responseContent.match(/\n\n/g) || []).length + 1);
         
         res.json({
             success: true,
-            response: data.choices[0].message.content
+            response: responseContent
         });
 
     } catch (error) {
