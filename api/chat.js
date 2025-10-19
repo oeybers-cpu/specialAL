@@ -1,6 +1,10 @@
 // api/chat.js
 export default async function handler(req, res) {
+    console.log('API Route called - Checking environment variables...');
+    console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
+    
     if (req.method !== 'POST') {
+        console.log('Method not allowed:', req.method);
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
@@ -20,15 +24,32 @@ export default async function handler(req, res) {
 
     try {
         const { message, type } = req.body;
+        console.log('Received request:', { type, message: message.substring(0, 100) + '...' });
 
         if (!message) {
+            console.log('No message provided');
             return res.status(400).json({ 
                 success: false, 
                 error: 'Message is required' 
             });
         }
 
-        // Call OpenAI API
+        // Enhanced system prompt for better responses
+        const systemPrompt = `You are ALLChat Assistant, a helpful and engaging AI assistant. 
+Your role is to provide meaningful, detailed responses to users' questions and comments.
+
+IMPORTANT GUIDELINES:
+- Provide comprehensive, thoughtful responses (3-5 sentences minimum)
+- Be engaging and conversational
+- For questions: give informative, detailed answers with examples when helpful
+- For comments: acknowledge the user's perspective and share relevant insights
+- Always be helpful and friendly
+- Avoid one-sentence responses unless specifically requested
+- If unsure, ask clarifying questions rather than giving brief answers
+
+Remember: Users expect meaningful interaction, not just quick acknowledgments.`;
+
+        console.log('Making OpenAI request...');
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -40,50 +61,69 @@ export default async function handler(req, res) {
                 messages: [
                     {
                         role: 'system',
-                        content: `You are ALLChat Assistant, a helpful and friendly AI assistant. 
-                                Users can ask questions or post comments. 
-                                
-                                Guidelines:
-                                - Be engaging, conversational, and helpful
-                                - If it's a question, provide clear, informative answers
-                                - If it's a comment, engage in meaningful conversation
-                                - Keep responses concise but thorough (2-4 paragraphs max)
-                                - Use a friendly and professional tone
-                                - If you don't know something, be honest about it
-                                - Format your responses with clear paragraphs using \\n\\n for line breaks`
+                        content: systemPrompt
                     },
                     {
                         role: 'user',
                         content: `${type === 'Question' ? 'Question:' : 'Comment:'} ${message}`
                     }
                 ],
-                max_tokens: 800,
-                temperature: 0.7
+                max_tokens: 1000,  // Increased for more detailed responses
+                temperature: 0.8,  // Slightly higher for more engaging responses
+                top_p: 0.9,
+                frequency_penalty: 0.1,
+                presence_penalty: 0.1
             })
         });
 
+        console.log('OpenAI response status:', openaiResponse.status);
+
         if (!openaiResponse.ok) {
-            const errorData = await openaiResponse.text();
-            console.error('OpenAI API error:', openaiResponse.status, errorData);
-            throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+            const errorText = await openaiResponse.text();
+            console.error('OpenAI API error details:', openaiResponse.status, errorText);
+            
+            // More specific error messages
+            if (openaiResponse.status === 401) {
+                throw new Error('Invalid API key - please check your OpenAI API key in Vercel environment variables');
+            } else if (openaiResponse.status === 429) {
+                throw new Error('Rate limit exceeded - please try again in a moment');
+            } else {
+                throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`);
+            }
         }
 
         const data = await openaiResponse.json();
+        console.log('OpenAI response received, choices:', data.choices?.length);
 
         if (data.choices && data.choices[0]) {
+            const responseContent = data.choices[0].message.content;
+            console.log('Response length:', responseContent.length);
+            console.log('Response preview:', responseContent.substring(0, 100) + '...');
+            
             res.status(200).json({
                 success: true,
-                response: data.choices[0].message.content
+                response: responseContent
             });
         } else {
-            throw new Error('No response from OpenAI');
+            console.error('No choices in OpenAI response:', data);
+            throw new Error('No response generated by OpenAI');
         }
 
     } catch (error) {
-        console.error('API error:', error);
+        console.error('API error details:', error.message);
+        
+        // More user-friendly error messages
+        let userMessage = "I apologize, but I'm having trouble responding right now. Please try again.";
+        
+        if (error.message.includes('API key')) {
+            userMessage = "Service configuration issue. Please check the API setup.";
+        } else if (error.message.includes('Rate limit')) {
+            userMessage = "I'm getting too many requests right now. Please wait a moment and try again.";
+        }
+        
         res.status(500).json({
             success: false,
-            error: 'Failed to get response from AI assistant'
+            error: userMessage
         });
     }
 }
