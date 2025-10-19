@@ -1,55 +1,34 @@
-// api/chat.js
+// api/chat.js - CLEAN VERSION
 export default async function handler(req, res) {
-    console.log('API Route called - Checking environment variables...');
-    console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
+    // Log that we're starting
+    console.log('=== CHAT API CALLED ===');
     
     if (req.method !== 'POST') {
-        console.log('Method not allowed:', req.method);
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
 
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Credentials', true);
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Handle OPTIONS request for CORS
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
 
     try {
         const { message, type } = req.body;
-        console.log('Received request:', { type, message: message.substring(0, 100) + '...' });
+        console.log('Received:', { message, type });
 
         if (!message) {
-            console.log('No message provided');
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Message is required' 
-            });
+            return res.status(400).json({ success: false, error: 'No message' });
         }
 
-        // Enhanced system prompt for better responses
-        const systemPrompt = `You are ALLChat Assistant, a helpful and engaging AI assistant. 
-Your role is to provide meaningful, detailed responses to users' questions and comments.
+        // SIMPLE TEST PROMPT - let's get this working first
+        const systemPrompt = "You are a helpful assistant. Provide detailed responses.";
 
-IMPORTANT GUIDELINES:
-- Provide comprehensive, thoughtful responses (3-5 sentences minimum)
-- Be engaging and conversational
-- For questions: give informative, detailed answers with examples when helpful
-- For comments: acknowledge the user's perspective and share relevant insights
-- Always be helpful and friendly
-- Avoid one-sentence responses unless specifically requested
-- If unsure, ask clarifying questions rather than giving brief answers
-
-Remember: Users expect meaningful interaction, not just quick acknowledgments.`;
-
-        console.log('Making OpenAI request...');
+        console.log('Making OpenAI request with key:', process.env.OPENAI_API_KEY ? 'Key exists' : 'NO KEY');
+        
         const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -59,71 +38,35 @@ Remember: Users expect meaningful interaction, not just quick acknowledgments.`;
             body: JSON.stringify({
                 model: 'gpt-3.5-turbo',
                 messages: [
-                    {
-                        role: 'system',
-                        content: systemPrompt
-                    },
-                    {
-                        role: 'user',
-                        content: `${type === 'Question' ? 'Question:' : 'Comment:'} ${message}`
-                    }
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: message }
                 ],
-                max_tokens: 1000,  // Increased for more detailed responses
-                temperature: 0.8,  // Slightly higher for more engaging responses
-                top_p: 0.9,
-                frequency_penalty: 0.1,
-                presence_penalty: 0.1
+                max_tokens: 500,
+                temperature: 0.7
             })
         });
 
         console.log('OpenAI response status:', openaiResponse.status);
-
+        
         if (!openaiResponse.ok) {
             const errorText = await openaiResponse.text();
-            console.error('OpenAI API error details:', openaiResponse.status, errorText);
-            
-            // More specific error messages
-            if (openaiResponse.status === 401) {
-                throw new Error('Invalid API key - please check your OpenAI API key in Vercel environment variables');
-            } else if (openaiResponse.status === 429) {
-                throw new Error('Rate limit exceeded - please try again in a moment');
-            } else {
-                throw new Error(`OpenAI API error: ${openaiResponse.status} - ${errorText}`);
-            }
+            console.error('OpenAI error:', openaiResponse.status, errorText);
+            throw new Error(`OpenAI API error: ${openaiResponse.status}`);
         }
 
         const data = await openaiResponse.json();
-        console.log('OpenAI response received, choices:', data.choices?.length);
-
-        if (data.choices && data.choices[0]) {
-            const responseContent = data.choices[0].message.content;
-            console.log('Response length:', responseContent.length);
-            console.log('Response preview:', responseContent.substring(0, 100) + '...');
-            
-            res.status(200).json({
-                success: true,
-                response: responseContent
-            });
-        } else {
-            console.error('No choices in OpenAI response:', data);
-            throw new Error('No response generated by OpenAI');
-        }
+        console.log('OpenAI response received successfully');
+        
+        res.json({
+            success: true,
+            response: data.choices[0].message.content
+        });
 
     } catch (error) {
-        console.error('API error details:', error.message);
-        
-        // More user-friendly error messages
-        let userMessage = "I apologize, but I'm having trouble responding right now. Please try again.";
-        
-        if (error.message.includes('API key')) {
-            userMessage = "Service configuration issue. Please check the API setup.";
-        } else if (error.message.includes('Rate limit')) {
-            userMessage = "I'm getting too many requests right now. Please wait a moment and try again.";
-        }
-        
+        console.error('FINAL ERROR:', error.message);
         res.status(500).json({
             success: false,
-            error: userMessage
+            error: "Service temporarily unavailable. Please try again."
         });
     }
 }
