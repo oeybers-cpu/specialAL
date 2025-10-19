@@ -1,14 +1,9 @@
 <!DOCTYPE html> 
-<html lang="en"> .agent-content {
-  white-space: pre-wrap;
-  line-height: 1.6;
-  font-size: 1rem;
-}
-
-<head> <script src="script.js"></script>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALLChat Interactive</title>
+    <title>ALitSpecialist - Academic Literacy Assistant</title>
     <style>
         :root {
             --primary-color: #3a86ff;
@@ -199,6 +194,12 @@
             40% { transform: scale(1); opacity: 1; }
         }
         
+        .agent-content {
+            white-space: pre-wrap;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+        
         @media (max-width: 600px) {
             .input-container {
                 flex-direction: column;
@@ -220,19 +221,19 @@
 </head>
 <body>
     <header>
-        <div class="logo">ALLChat Interactive</div>
-        <div class="tagline">Ask questions, share comments, get responses</div>
+        <div class="logo">ALitSpecialist</div>
+        <div class="tagline">Academic Literacy Specialist - Your partner in scholarly excellence</div>
     </header>
     
     <div class="chat-container">
         <div class="chat-messages" id="chatMessages">
             <div class="message agent-message">
                 <div class="message-header">
-                    <span>ALLChat Assistant</span>
+                    <span>ALitSpecialist</span>
                     <span>Just now</span>
                 </div>
-                <div class="message-content">
-                    Hello! Welcome to ALLChat Interactive. You can ask me questions or share your comments. How can I help you today?
+                <div class="message-content agent-content">
+                    Welcome! I'm your Academic Literacy Specialist, here to support you across all dimensions of academic work. I bring expertise in critical literacy, inclusive pedagogy, and culturally responsive practice. How can I assist with your academic journey today?
                 </div>
             </div>
         </div>
@@ -246,10 +247,10 @@
         </div>
         
         <div class="input-container">
-            <input type="text" class="input-field" id="messageInput" placeholder="Type your message here...">
+            <input type="text" class="input-field" id="messageInput" placeholder="Ask about academic writing, research, critical thinking...">
             <div class="button-group">
                 <button class="btn btn-question" id="askQuestion">Ask Question</button>
-                <button class="btn btn-comment" id="postComment">Post Comment</button>
+                <button class="btn btn-comment" id="postComment">Get Support</button>
             </div>
         </div>
     </div>
@@ -262,20 +263,6 @@
             const postCommentBtn = document.getElementById('postComment');
             const typingIndicator = document.getElementById('typingIndicator');
             
-            // Sample responses for demonstration
-            const responses = [
-                "That's an interesting point. Could you tell me more about that?",
-                "I understand your question. Let me provide some information on that topic.",
-                "Thanks for sharing your perspective. I appreciate your input.",
-                "I see what you're asking. Here's what I can tell you about that.",
-                "That's a thoughtful comment. Let me respond to that.",
-                "I'm glad you brought that up. Here's some information that might help.",
-                "Interesting question! Let me provide some details on that subject.",
-                "Thanks for your comment. Here's my perspective on that.",
-                "I appreciate you asking that. Here's what I know about it.",
-                "That's a good point. Let me add to that discussion."
-            ];
-            
             // Function to add a message to the chat
             function addMessage(content, isUser, type) {
                 const messageDiv = document.createElement('div');
@@ -285,7 +272,7 @@
                 messageHeader.className = 'message-header';
                 
                 const sender = document.createElement('span');
-                sender.textContent = isUser ? 'You' : 'ALLChat Assistant';
+                sender.textContent = isUser ? 'You' : 'ALitSpecialist';
                 
                 const timestamp = document.createElement('span');
                 const now = new Date();
@@ -295,7 +282,7 @@
                 messageHeader.appendChild(timestamp);
                 
                 const messageContent = document.createElement('div');
-                messageContent.className = 'message-content';
+                messageContent.className = 'message-content agent-content';
                 messageContent.textContent = content;
                 
                 // Add type indicator if it's a user message
@@ -315,38 +302,59 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
             
-            // Function to simulate agent response
-            function respondToUser(userMessage, type) {
+            // Function to get response from Agents SDK
+            async function respondToUser(userMessage, type) {
                 // Show typing indicator
                 typingIndicator.style.display = 'block';
                 chatMessages.scrollTop = chatMessages.scrollHeight;
                 
-                // Simulate thinking time
-                setTimeout(() => {
+                try {
+                    // Call the Agents SDK endpoint
+                    const response = await fetch('/api/agent-chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            message: userMessage,
+                            type: type
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Hide typing indicator
                     typingIndicator.style.display = 'none';
                     
-                    // Select a random response
-                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                    addMessage(randomResponse, false);
-                }, 1500);
+                    if (data.success) {
+                        addMessage(data.response, false);
+                    } else {
+                        addMessage("I apologize, but I'm having trouble accessing my specialized knowledge right now. Please try again.", false);
+                    }
+                    
+                } catch (error) {
+                    console.error('API Error:', error);
+                    typingIndicator.style.display = 'none';
+                    addMessage("I'm experiencing connection issues with my academic resources. Please try again in a moment.", false);
+                }
             }
             
             // Event listeners for buttons
             askQuestionBtn.addEventListener('click', function() {
                 const message = messageInput.value.trim();
                 if (message) {
-                    addMessage(message, true, 'Question');
+                    addMessage(message, true, 'Academic Question');
                     messageInput.value = '';
-                    respondToUser(message, 'Question');
+                    respondToUser(message, 'Academic Question');
                 }
             });
             
             postCommentBtn.addEventListener('click', function() {
                 const message = messageInput.value.trim();
                 if (message) {
-                    addMessage(message, true, 'Comment');
+                    addMessage(message, true, 'Academic Support');
                     messageInput.value = '';
-                    respondToUser(message, 'Comment');
+                    respondToUser(message, 'Academic Support');
                 }
             });
             
@@ -355,9 +363,9 @@
                 if (e.key === 'Enter') {
                     const message = messageInput.value.trim();
                     if (message) {
-                        addMessage(message, true, 'Message');
+                        addMessage(message, true, 'Academic Inquiry');
                         messageInput.value = '';
-                        respondToUser(message, 'Message');
+                        respondToUser(message, 'Academic Inquiry');
                     }
                 }
             });
