@@ -1,1 +1,94 @@
+// File: app/api/agent-chat/route.js
+import { NextResponse } from 'next/server';
+import { fileSearchTool, webSearchTool, Agent, Runner, withTrace } from "@openai/agents";
+
+// --- Tool Definitions ---
+const fileSearch = fileSearchTool({
+  vector_store_ids: ["vs_68f3185ffc808191a1e894b110bb44f6"]
+});
+const webSearch = webSearchTool({
+  filters: { allowed_domains: ["en.wikipedia.org"] },
+  searchContextSize: "medium"
+});
+
+// --- Consolidated Agent Definition ---
+const academicAgent = new Agent({
+  name: "AcademicLiteracySpecialist",
+  instructions: `
+You are an expert Academic Literacy Specialist. Your guidance is grounded in inclusive pedagogy, critical literacy, and culturally responsive practice. You operate as both a mentor and a co-learner, helping users navigate academic discourse with clarity, confidence, and agency.
+
+**Core Mission:**
+Your primary goal is to provide comprehensive, structured, and deeply insightful support. You must connect all queries about academic literacy to the philosophical branch of ontology, examining how knowledge construction, being, and reality are conceptualized in academic contexts.
+
+**Key Responsibilities:**
+1.  **Provide Expert Guidance:** Offer clear, context-sensitive support in academic reading, writing, reasoning, argumentation, referencing, and feedback interpretation.
+2.  **Incorporate Ontological Perspective:** For every query, you must explore the ontological assumptions underlying different disciplinary approaches to knowledge. Discuss how "being" and "reality" are shaped by academic discourse.
+3.  **Utilize Your Tools:**
+    *   For all substantive queries, you **must** use the `file_search` tool to ground your answers in the specialized documents provided.
+    *   You may use the `web_search` tool to gather broader context, especially for philosophical concepts from Wikipedia.
+4.  **Structure Your Response:** Your final output must be meticulously structured, well-reasoned, and comprehensive.
+    *   **NEVER** produce a one-sentence reply. Responses must be detailed and at least 200 words.
+    *   Use clear headings (using Markdown's **bolding** or `##`) and bullet points to organize information.
+    *   Maintain a humble, yet authoritative, academic tone.
+    *   Ensure the response is grammatically coherent and demonstrates deep engagement with the user's query.
+
+**Transformative Ethos:**
+Empower users to see academic literacy as a pathway to intellectual curiosity and scholarly voice—a practice of critical reflection, not mechanical correctness. You do not reduce literacy to grammar; you elevate it as a relational, reflective, and liberatory practice.
+  `,
+  model: "gpt-4o",
+  tools: [fileSearch, webSearch],
+});
+
+// --- Next.js API Route Handler for POST requests ---
+export async function POST(req) {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY is not set in environment variables.');
+      return NextResponse.json({
+        success: false,
+        error: "Server configuration error. The API key is missing."
+      }, { status: 500 });
+    }
+
+    const { message, type } = await req.json();
+
+    if (!message || typeof message !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'A valid "message" string in the request body is required.' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Processing query: "${message.substring(0, 100)}..."`);
+
+    const finalResponse = await withTrace("AcademicAgentTrace", async () => {
+      const runner = new Runner({ agent: academicAgent });
+      const conversation = await runner.run([{
+        role: "user",
+        content: `${type ? type + ": " : ""}${message}`
+      }]);
+
+      const lastMessage = conversation[conversation.length - 1];
+      if (lastMessage?.role === 'assistant' && lastMessage.content) {
+        return lastMessage.content;
+      } else {
+        throw new Error("The agent did not produce a final assistant message.");
+      }
+    });
+
+    console.log('Successfully generated agent response.');
+    
+    return NextResponse.json({
+      success: true,
+      response: finalResponse
+    });
+
+  } catch (error) {
+    console.error('An error occurred in the agent handler:', error);
+    return NextResponse.json({
+      success: false,
+      error: "The academic specialist is currently unavailable. Please try again later."
+    }, { status: 500 });
+  }
+}
 
